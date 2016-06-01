@@ -10,7 +10,13 @@ RUN mkdir /GWAS_STUDY_FOLDER && mkdir /GENOTYPE_FOLDER && mkdir /GWAS_VIEWER_FOL
 
 COPY . /tmp
 
+RUN /env/bin/pip install --upgrade pip
+
+# because of this issue https://github.com/matplotlib/matplotlib/pull/5954
+RUN /env/bin/pip install --upgrade git+git://github.com/matplotlib/matplotlib.git@31fa2b2ef0aafe6a53f648c4845542bfdeb45f41#egg=matplotlib
+
 RUN /env/bin/pip install . && rm -fr /tmp/*
+
 
 VOLUME ["/GWAS_STUDY_FOLDER","/GENOTYPE_FOLDER","GWAS_VIEWER_FOLDER"]
 
