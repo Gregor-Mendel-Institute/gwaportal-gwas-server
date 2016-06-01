@@ -2,11 +2,16 @@ import falcon
 import json
 import logging
 import os
+import tempfile
 from pygwas.core import ld
 from pygwas.core import genotype
+from pygwas.core import phenotype
 from wsgiref import simple_server
+from pygwas import pygwas
+import mimetypes
 
 GWAS_STUDY_FOLDER=os.environ['GWAS_STUDY_FOLDER']
+GWAS_VIEWER_FOLDER=os.environ['GWAS_VIEWER_FOLDER']
 GENOTYPE_FOLDER=os.environ['GENOTYPE_FOLDER']
 
 
@@ -20,11 +25,11 @@ class RequireJSON(object):
                 'This API only supports responses encoded as JSON.',
                 href='http://docs.examples.com/api/json')
 
-        if req.method in ('POST', 'PUT'):
+        '''if req.method in ('POST', 'PUT'):
             if 'application/json' not in req.content_type:
                 raise falcon.HTTPUnsupportedMediaType(
                     'This API only supports requests encoded as JSON.',
-                    href='http://docs.examples.com/api/json')
+                    href='http://docs.examples.com/api/json')'''
 
 
 class JSONTranslator(object):
@@ -34,7 +39,7 @@ class JSONTranslator(object):
         # and allows you to read bytes from the request body.
         #
         # See also: PEP 3333
-        if req.content_length in (None, 0):
+        if req.content_length in (None, 0) or 'application/json' not in req.content_type:
             # Nothing to do
             return
 
@@ -99,8 +104,79 @@ class LdExactForRegionResource(object):
         ld_data = ld.calculate_ld_for_region(genotypeData,accessions,chr,position,num_snps=num_snps)
         req.context['result'] = ld_data
         resp.status = falcon.HTTP_200
+
+
+class StatisticsResource(object):
+    def __init__(self,storage_path):
+        self.storage_path = storage_path
+        self.logger = logging.getLogger(__name__)
+    
+    def on_post(self,req,resp,genotype_id,type):
+        phenotypes =  zip(*req.context.get('doc',[]))
+        accessions = phenotypes[0]
+        values = phenotypes[1]
+        phen_data = phenotype.Phenotype(accessions,values,'phenotype')
+        genotype_folder = '%s/%s' % (self.storage_path,genotype_id)
+        arguments = {'type':type,'genotype_folder':genotype_folder,'phen_data':phen_data,'file':''}
+        statistics = pygwas.calculate_stats(arguments)
+        req.context['result'] = statistics
+        resp.status = falcon.HTTP_200 
+
+class PlottingResource(object):
+    def __init__(self,study_path,viewer_path):
+       self.study_path = study_path
+       self.viewer_path = viewer_path
+       self.logger = logging.getLogger(__name__)
+    
+    def on_get(self, req, resp,type,id):
+        if type not in ('study','viewer'):
+             raise falcon.HTTPNotFound()
+        file = '%s/%s.hdf5' % (self.viewer_path if type == 'viewer' else self.study_path,id)
+        _plot(file,resp,req)
     
 
+class PlottingGenericResource(object):
+    def __init__(self):
+        self.logger = logging.getLogger(__name__)
+    
+    def on_post(self,req,resp):
+        '''Sending a gwas result file to plot'''
+        ext = mimetypes.guess_extension(req.content_type)
+        if ext not in ('hdf5','csv'):
+            raise falcon.HTTPUnsupportedMediaType('Only hdf5 and csv files are supported')
+        _,file = tempfile.mkstemp(suffix='.%s' % ext)
+        with open(file, 'wb') as f:
+            while True:
+                chunk = req.stream.read(4096)
+                if not chunk:
+                    break
+                f.write(chunk)
+        _plot(file,resp,req)
+        os.unlink(file)    
+        
+
+
+
+def _plot(file,resp,req):
+    format = req.params.get('format','png')
+    if format not in ('png','pdf'):
+        raise falcon.HTTPUnsupportedMediaType('Only png and pdf formats are supported')
+    chr = req.params.get('chr',None)
+    macs = int(req.params.get('macs',15))
+    args = {}
+    args['file'] = file
+    args['chr'] = chr
+    _,args['output'] = tempfile.mkstemp(suffix='.%s' % format)
+    args['macs'] = macs
+    try:
+        pygwas.plot(args)
+        resp.content_type = 'application/pdf' if format == 'pdf' else 'image/png'
+        with open(args['output'],'rb') as f:
+            resp.body = f.read()
+    except Exception as err:
+        raise err
+    finally:
+        os.unlink(args['output'])
 
 api = falcon.API(middleware=[
     RequireJSON(),
@@ -110,10 +186,16 @@ api = falcon.API(middleware=[
 ldForSnp = LdForSnpResource(GWAS_STUDY_FOLDER)
 ldForRegion = LdForRegionResource(GWAS_STUDY_FOLDER)
 ldForExactRegion = LdExactForRegionResource(GENOTYPE_FOLDER)
+plotting = PlottingResource(GWAS_STUDY_FOLDER,GWAS_VIEWER_FOLDER)
+plotting_generic = PlottingGenericResource()
+statistics = StatisticsResource(GENOTYPE_FOLDER)
 
 api.add_route('/analysis/{analysis_id}/ld/{chr}/{position}', ldForSnp)
 api.add_route('/analysis/{analysis_id}/ld/region/{chr}/{start_pos}/{end_pos}', ldForRegion)
 api.add_route('/ld/{genotype_id}/{chr}/{position}',ldForExactRegion)
+api.add_route('/plotting/{type}/{id}',plotting)
+api.add_route('/plotting',plotting_generic)
+api.add_route('/statistics/{genotype_id}/{type}',statistics)
 
 def main():
     httpd = simple_server.make_server('127.0.0.1', 8000, api)
