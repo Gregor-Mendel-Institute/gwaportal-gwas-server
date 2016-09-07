@@ -164,10 +164,10 @@ class PlottingQQResource(object):
        self.viewer_path = viewer_path
        self.logger = logging.getLogger(__name__)
 
-    def on_get(self, req, resp,type,analysis_id):
+    def on_get(self, req, resp,type,id):
         if type not in ('study','viewer'):
              raise falcon.HTTPNotFound()
-        file = '%s/%s.hdf5' % (self.viewer_path if type == 'viewer' else self.study_path,analysis_id)
+        file = '%s/%s.hdf5' % (self.viewer_path if type == 'viewer' else self.study_path,id)
         format = req.params.get('format','png')
         if format not in ('png','pdf'):
             raise falcon.HTTPUnsupportedMediaType('Only png and pdf formats are supported')
@@ -216,9 +216,9 @@ statistics = StatisticsResource(GENOTYPE_FOLDER)
 
 api.add_route('/analysis/{analysis_id}/ld/{chr}/{position}', ldForSnp)
 api.add_route('/analysis/{analysis_id}/ld/region/{chr}/{start_pos}/{end_pos}', ldForRegion)
-api.add_route('/analysis/{analysis_id}/{type}/qqplot',plotting_qq)
 api.add_route('/ld/{genotype_id}/{chr}/{position}',ldForExactRegion)
-api.add_route('/plotting/{type}/{id}',plotting_gwas)
+api.add_route('/plotting/{type}/{id}/gwas',plotting_gwas)
+api.add_route('/plotting/{type}/{id}/qq',plotting_qq)
 api.add_route('/plotting/gwas',plotting_gwas_generic)
 api.add_route('/plotting/qq',plotting_qq_generic)
 api.add_route('/statistics/{genotype_id}/{type}',statistics)
