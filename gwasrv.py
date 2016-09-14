@@ -9,6 +9,7 @@ from pygwas.core import phenotype
 from wsgiref import simple_server
 from pygwas import pygwas
 import mimetypes
+import numpy as np
 
 GWAS_STUDY_FOLDER=os.environ['GWAS_STUDY_FOLDER']
 GWAS_VIEWER_FOLDER=os.environ['GWAS_VIEWER_FOLDER']
@@ -85,7 +86,7 @@ class LdForRegionResource(object):
     def on_get(self, req, resp,analysis_id,chr,start_pos,end_pos):
         start_pos = int(start_pos)
         end_pos = int(end_pos)
-        ld_data = ld.get_ld_for_region('%s/%s.hdf5' % (self.storage_path,analysis_id),chr,start_pos,end_pos)
+        ld_data = _replace_NaN(ld.get_ld_for_region('%s/%s.hdf5' % (self.storage_path,analysis_id),chr,start_pos,end_pos))
         req.context['result'] = ld_data
         resp.status = falcon.HTTP_200
 
@@ -101,7 +102,7 @@ class LdExactForRegionResource(object):
         num_snps = int(req.params.get('num_snps',250))
         accessions =  req.context.get('doc',[])
 
-        ld_data = ld.calculate_ld_for_region(genotypeData,accessions,chr,position,num_snps=num_snps)
+        ld_data = _replace_NaN(ld.calculate_ld_for_region(genotypeData,accessions,chr,position,num_snps=num_snps))
         req.context['result'] = ld_data
         resp.status = falcon.HTTP_200
 
@@ -173,6 +174,10 @@ class PlottingQQResource(object):
             raise falcon.HTTPUnsupportedMediaType('Only png and pdf formats are supported')
         _qq_plot(file,resp,req)
 
+def _replace_NaN(ld_data):
+    ld_data['r2'] = map(lambda x: np.nan_to_num(x).tolist(),ld_data['r2'])
+    return ld_data
+
 
 def _qq_plot(file,resp,req):
     _plot(file,resp,req,pygwas.qq_plot,{})
@@ -224,7 +229,7 @@ api.add_route('/plotting/qq',plotting_qq_generic)
 api.add_route('/statistics/{genotype_id}/{type}',statistics)
 
 def main():
-    httpd = simple_server.make_server('127.0.0.1', 8000, api)
+    httpd = simple_server.make_server('0.0.0.0', 8009, api)
     httpd.serve_forever()
 
 if __name__ == '__main__':
