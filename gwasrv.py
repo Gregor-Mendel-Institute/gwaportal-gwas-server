@@ -187,6 +187,7 @@ def _gwas_plot(file,resp,req):
     args = {}
     args['chr'] = req.params.get('chr',None)
     args['macs'] = int(req.params.get('macs',15))
+    args['marker_size'] = int(req.params.get('marker_size',10))
     _plot(file,resp,req,pygwas.plot,args)
 
 def _plot(file,resp,req,plot_func,args):
