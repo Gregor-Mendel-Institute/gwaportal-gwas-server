@@ -33,7 +33,7 @@ setup(
     keywords='GWAS hdf5 GWA-Portal',
     py_modules=['gwasrv'],
     install_requires=[
-        "PyGWAS >= 1.6.0",
+        "PyGWAS >= 1.6.1",
         "gunicorn >=19.0.0",
         "falcon >= 1.0.0",
     ],
