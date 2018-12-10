@@ -10,7 +10,7 @@ with open(path.join(here, 'README.rst'), encoding='utf-8') as f:
 
 setup(
     name='gwasrv',
-    version="0.3.0",
+    version="0.4.0",
     description='A RESTful backend for accessing GWAS HDF5 files GWA-Portal',
     long_description=long_description,
     url='https://github.com/timeu/gwaportal-gwas-server',
@@ -33,7 +33,7 @@ setup(
     keywords='GWAS hdf5 GWA-Portal',
     py_modules=['gwasrv'],
     install_requires=[
-        "PyGWAS >= 1.6.1",
+        "PyGWAS >= 1.7.4",
         "gunicorn >=19.0.0",
         "falcon >= 1.0.0",
     ],
