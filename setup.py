@@ -10,7 +10,7 @@ with open(path.join(here, 'README.rst'), encoding='utf-8') as f:
 
 setup(
     name='gwasrv',
-    version="0.4.0",
+    version="0.5.0",
     description='A RESTful backend for accessing GWAS HDF5 files GWA-Portal',
     long_description=long_description,
     url='https://github.com/timeu/gwaportal-gwas-server',
