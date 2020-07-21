@@ -7,4 +7,4 @@ RUN pip install --no-cache-dir -r /tmp/requirements.txt && pip install gunicorn
 COPY . /tmp
 RUN pip install --no-cache-dir /tmp && rm -fr /tmp/*
 USER gwaportal
-ENTRYPOINT ["gunicorn","-b","0.0.0.0:8000","--workers", "2","gwasrv:api"]
+ENTRYPOINT ["gunicorn","-b","0.0.0.0:8000","--workers", "2","--timeout","300","gwasrv:api"]
